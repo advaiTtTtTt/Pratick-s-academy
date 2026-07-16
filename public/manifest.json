@@ -1,7 +1,7 @@
 {
-  "name": "Pratick's Academy",
-  "short_name": "Academy",
-  "description": "Learn from the best at Pratick's Academy",
+  "name": "Victory Education",
+  "short_name": "Victory Ed",
+  "description": "Learn from the best at Victory Education",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f172a",

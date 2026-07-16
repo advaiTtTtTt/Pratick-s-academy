@@ -7,13 +7,13 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Pratick's Academy — Online Learning Platform",
-  description: "Access recorded lectures and live sessions for Pratick's Academy. Browse subjects, watch video lectures, and join live classes.",
+  title: "Victory Education — Online Learning Platform",
+  description: "Access recorded lectures and live sessions for Victory Education. Browse subjects, watch video lectures, and join live classes.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Pratick's Academy",
+    title: "Victory Education",
   },
   formatDetection: {
     telephone: false,
