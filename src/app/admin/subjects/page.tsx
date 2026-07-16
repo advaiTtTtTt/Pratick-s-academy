@@ -87,6 +87,28 @@ export default function AdminSubjectsPage() {
     }
   };
 
+  const handleMove = async (index: number, direction: 'up' | 'down') => {
+    if (direction === 'up' && index === 0) return;
+    if (direction === 'down' && index === subjects.length - 1) return;
+
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    const currentSubject = subjects[index];
+    const targetSubject = subjects[newIndex];
+
+    setSubmitting(true);
+    try {
+      await Promise.all([
+        updateSubject(currentSubject.id, { order: targetSubject.order }),
+        updateSubject(targetSubject.id, { order: currentSubject.order }),
+      ]);
+      await fetchSubjects();
+    } catch (error) {
+      console.error('Error reordering subjects:', error);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
@@ -171,7 +193,7 @@ export default function AdminSubjectsPage() {
 
             {/* Rows */}
             <div className="divide-y divide-slate-700/30">
-              {subjects.map((subject) => (
+              {subjects.map((subject, index) => (
                 <div
                   key={subject.id}
                   className="px-6 py-4 hover:bg-slate-700/30 transition-colors duration-150"
@@ -216,10 +238,26 @@ export default function AdminSubjectsPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-4 items-center">
                       <div className="sm:col-span-5">
                         <span className="text-white font-medium">{subject.name}</span>
-                        <span className="sm:hidden text-slate-500 ml-2 text-sm">Order: {subject.order}</span>
                       </div>
-                      <div className="hidden sm:block sm:col-span-2 text-slate-400">
-                        {subject.order}
+                      <div className="hidden sm:flex sm:col-span-2 items-center gap-1">
+                        <button
+                          onClick={() => handleMove(index, 'up')}
+                          disabled={index === 0 || submitting}
+                          className="p-1 text-slate-500 hover:text-indigo-400 hover:bg-indigo-500/10 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        >
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => handleMove(index, 'down')}
+                          disabled={index === subjects.length - 1 || submitting}
+                          className="p-1 text-slate-500 hover:text-indigo-400 hover:bg-indigo-500/10 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        >
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                          </svg>
+                        </button>
                       </div>
                       <div className="sm:col-span-5 flex gap-2 sm:justify-end">
                         <button

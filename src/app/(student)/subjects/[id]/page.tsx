@@ -43,8 +43,8 @@ function formatScheduledTime(scheduledAt: FirestoreDate | undefined): string {
   });
 }
 
-export default function SubjectPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = React.use(params);
+export default function SubjectPage({ params }: { params: { id: string } }) {
+  const { id } = params;
   const [subject, setSubject] = useState<Subject | null>(null);
   const [lectures, setLectures] = useState<Lecture[]>([]);
   const [loading, setLoading] = useState(true);

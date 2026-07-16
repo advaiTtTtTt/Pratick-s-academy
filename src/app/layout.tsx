@@ -3,9 +3,9 @@ import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 
 export const metadata: Metadata = {
-  title: "Academy — Online Learning Platform",
+  title: "Victory Education — Online Learning Platform",
   description:
-    "Access recorded lectures and live sessions for your coaching academy. Browse subjects, watch video lectures, and join live classes.",
+    "Access recorded lectures and live sessions for Victory Education. Browse subjects, watch video lectures, and join live classes.",
 };
 
 export default function RootLayout({

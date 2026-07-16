@@ -25,6 +25,7 @@ export default function AdminLecturesPage() {
   const [videoUrl, setVideoUrl] = useState('');
   const [liveJoinUrl, setLiveJoinUrl] = useState('');
   const [scheduledAt, setScheduledAt] = useState('');
+  const [materialsUrl, setMaterialsUrl] = useState('');
 
   const fetchData = async () => {
     try {
@@ -57,6 +58,7 @@ export default function AdminLecturesPage() {
     setVideoUrl('');
     setLiveJoinUrl('');
     setScheduledAt('');
+    setMaterialsUrl('');
     if (subjects.length > 0) {
       setSubjectId(subjects[0].id);
     }
@@ -65,6 +67,20 @@ export default function AdminLecturesPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !subjectId) return;
+    
+    // URL Validation
+    const isYouTube = (url: string) => /^(https?\:\/\/)?(www\.youtube\.com|youtu\.be)\/.+$/.test(url);
+    const isDrive = (url: string) => /^(https?\:\/\/)?(drive\.google\.com)\/.+$/.test(url);
+
+    if (type === 'recorded' && videoUrl.trim() && !isYouTube(videoUrl.trim())) {
+      alert("Please enter a valid YouTube URL (e.g. https://www.youtube.com/watch?v=...)");
+      return;
+    }
+    if (materialsUrl.trim() && !isDrive(materialsUrl.trim())) {
+      alert("Please enter a valid Google Drive link (e.g. https://drive.google.com/...)");
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -76,6 +92,7 @@ export default function AdminLecturesPage() {
         videoUrl: type === 'recorded' ? videoUrl.trim() : '',
         liveJoinUrl: type === 'live' ? liveJoinUrl.trim() : '',
         scheduledAt: type === 'live' && scheduledAt ? new Date(scheduledAt) : null,
+        materialsUrl: materialsUrl.trim(),
         createdAt: new Date(),
       };
 
@@ -102,6 +119,7 @@ export default function AdminLecturesPage() {
     setType(lecture.type);
     setVideoUrl(lecture.videoUrl || '');
     setLiveJoinUrl(lecture.liveJoinUrl || '');
+    setMaterialsUrl(lecture.materialsUrl || '');
     setScheduledAt(
       lecture.scheduledAt
         ? new Date(lecture.scheduledAt).toISOString().slice(0, 16)
@@ -269,7 +287,7 @@ export default function AdminLecturesPage() {
             {type === 'recorded' ? (
               <div>
                 <label htmlFor="lecture-video" className="text-sm font-medium text-slate-300 mb-1.5 block">
-                  Video URL
+                  YouTube Video URL (Unlisted)
                 </label>
                 <input
                   id="lecture-video"
@@ -309,6 +327,24 @@ export default function AdminLecturesPage() {
                 </div>
               </div>
             )}
+
+            {/* Study Materials */}
+            <div>
+              <label htmlFor="lecture-materials" className="text-sm font-medium text-slate-300 mb-1.5 block">
+                Study Materials (Google Drive Link)
+              </label>
+              <input
+                id="lecture-materials"
+                type="url"
+                value={materialsUrl}
+                onChange={(e) => setMaterialsUrl(e.target.value)}
+                placeholder="https://drive.google.com/..."
+                className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all w-full"
+              />
+              <p className="mt-2 text-xs text-slate-500">
+                Paste a link to Google Drive folders, PDFs, or Notes. Make sure the sharing settings are set to &quot;Anyone with the link&quot;.
+              </p>
+            </div>
 
             {/* Actions */}
             <div className="flex gap-3 pt-2">

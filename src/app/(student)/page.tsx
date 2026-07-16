@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { getSubjects } from '@/lib/firestore';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import AlertBanner from '@/components/AlertBanner';
 
 interface Subject {
   id: string;
@@ -38,7 +39,9 @@ export default function HomePage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <>
+      <AlertBanner />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-white">Your Subjects</h1>
@@ -110,5 +113,6 @@ export default function HomePage() {
         </div>
       )}
     </div>
+    </>
   );
 }

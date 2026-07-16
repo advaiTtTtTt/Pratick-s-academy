@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { signIn } from '@/lib/auth';
-import { getUserByUid } from '@/lib/firestore';
+import { signIn, signUp } from '@/lib/auth';
+import { getUserByUid, createUserDoc } from '@/lib/firestore';
 import { useAuth } from '@/context/AuthContext';
 
 export default function LoginPage() {
+  const [isLogin, setIsLogin] = useState(true);
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -30,25 +32,56 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const userCredential = await signIn(email, password);
-      const userData = await getUserByUid(userCredential.user.uid);
+      if (isLogin) {
+        const userCredential = await signIn(email, password);
+        let userData = await getUserByUid(userCredential.user.uid);
 
-      if (!userData) {
-        setError('Account not found. Contact your admin.');
-        setLoading(false);
-        return;
-      }
+        if (!userData) {
+          // Self-heal: If Auth exists but Firestore profile is missing, create it now!
+          const adminEmails = ['pratikrajguru45@gmail.com', '2023.advait.daware@ves.ac.in'];
+          const assignedRole = adminEmails.includes(email) ? 'admin' : 'student';
+          
+          try {
+            await createUserDoc(userCredential.user.uid, {
+              email,
+              name: '', 
+              role: assignedRole,
+            });
+            userData = { id: userCredential.user.uid, email, name: '', role: assignedRole };
+          } catch (error) {
+            console.error('Failed to create missing profile:', error);
+            setError('Missing database permissions. Please update your Firebase Rules!');
+            setLoading(false);
+            return;
+          }
+        }
 
-      if (userData.role === 'admin') {
-        router.push('/admin');
-      } else if (userData.role === 'student') {
-        router.push('/');
+        if (userData.role === 'admin') {
+          router.push('/admin');
+        } else {
+          router.push('/');
+        }
       } else {
-        setError('Account not found. Contact your admin.');
-        setLoading(false);
+        const userCredential = await signUp(email, password);
+        const adminEmails = ['pratikrajguru45@gmail.com', '2023.advait.daware@ves.ac.in'];
+        const assignedRole = adminEmails.includes(email) ? 'admin' : 'student';
+        
+        await createUserDoc(userCredential.user.uid, {
+          email,
+          name,
+          role: assignedRole,
+        });
+        
+        if (assignedRole === 'admin') {
+          router.push('/admin');
+        } else {
+          router.push('/');
+        }
       }
-    } catch {
-      setError('Invalid email or password. Please try again.');
+    } catch (err: unknown) {
+      console.error('Auth error:', err);
+      const message = err instanceof Error ? err.message : String(err);
+      setError(`Error: ${message}`);
       setLoading(false);
     }
   };
@@ -78,27 +111,32 @@ export default function LoginPage() {
         <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-8">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600/20 rounded-2xl mb-4">
-              <svg
-                className="w-8 h-8 text-indigo-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={1.5}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5"
-                />
-              </svg>
+            <div className="inline-flex items-center justify-center mb-4">
+              <img src="/logo.png" alt="Victory Education" className="h-24 w-auto drop-shadow-xl" />
             </div>
-            <h1 className="text-2xl font-bold text-white">Student Login</h1>
-            <p className="text-slate-400 mt-2">Sign in to access your courses</p>
+            <h1 className="text-2xl font-bold text-white">{isLogin ? 'Welcome Back' : 'Create Account'}</h1>
+            <p className="text-slate-400 mt-2">{isLogin ? 'Sign in to access your courses' : 'Sign up to start learning'}</p>
           </div>
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
+            {!isLogin && (
+              <div>
+                <label htmlFor="name" className="block text-sm font-medium text-slate-300 mb-2">
+                  Full Name
+                </label>
+                <input
+                  id="name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="John Doe"
+                  required={!isLogin}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
+                />
+              </div>
+            )}
+
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">
                 Email Address
@@ -143,22 +181,25 @@ export default function LoginPage() {
               {loading ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Signing in...
+                  {isLogin ? 'Signing in...' : 'Signing up...'}
                 </>
               ) : (
-                'Sign In'
+                isLogin ? 'Sign In' : 'Sign Up'
               )}
             </button>
           </form>
 
-          {/* Admin link */}
+          {/* Toggle Login/Signup */}
           <div className="mt-6 text-center">
-            <a
-              href="/admin/login"
+            <button
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setError('');
+              }}
               className="text-sm text-slate-400 hover:text-indigo-400 transition-colors duration-200"
             >
-              Are you an admin? Login here →
-            </a>
+              {isLogin ? "Don't have an account? Sign up →" : "Already have an account? Log in →"}
+            </button>
           </div>
         </div>
       </div>

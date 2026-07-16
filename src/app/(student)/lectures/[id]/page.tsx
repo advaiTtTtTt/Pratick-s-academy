@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { getLecture } from '@/lib/firestore';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import ProtectedVideoPlayer from '@/components/ProtectedVideoPlayer';
 
 interface Lecture {
   id: string;
@@ -13,6 +14,7 @@ interface Lecture {
   type: 'recorded' | 'live';
   videoUrl?: string;
   liveJoinUrl?: string;
+  materialsUrl?: string;
   scheduledAt?: Date | { toDate(): Date };
   createdAt?: Date | { toDate(): Date };
 }
@@ -21,19 +23,6 @@ type FirestoreDate = Date | { toDate(): Date };
 
 function toJsDate(d: FirestoreDate): Date {
   return 'toDate' in d && typeof d.toDate === 'function' ? d.toDate() : new Date(d as Date);
-}
-function extractYouTubeId(url: string): string | null {
-  if (!url) return null;
-  // Handle youtu.be/ID format
-  const shortMatch = url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
-  if (shortMatch) return shortMatch[1];
-  // Handle youtube.com/watch?v=ID format
-  const longMatch = url.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
-  if (longMatch) return longMatch[1];
-  // Handle youtube.com/embed/ID format
-  const embedMatch = url.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/);
-  if (embedMatch) return embedMatch[1];
-  return null;
 }
 
 function formatScheduledTime(scheduledAt: FirestoreDate | undefined): string {
@@ -62,8 +51,8 @@ function getLiveStatus(scheduledAt: FirestoreDate | undefined): 'upcoming' | 'li
   return 'past';
 }
 
-export default function LecturePage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = React.use(params);
+export default function LecturePage({ params }: { params: { id: string } }) {
+  const { id } = params;
   const [lecture, setLecture] = useState<Lecture | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -79,6 +68,16 @@ export default function LecturePage({ params }: { params: Promise<{ id: string }
       }
     };
     fetchLecture();
+
+    // Disable right-click to prevent downloading or inspecting
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+    document.addEventListener('contextmenu', handleContextMenu);
+
+    return () => {
+      document.removeEventListener('contextmenu', handleContextMenu);
+    };
   }, [id]);
 
   if (loading) {
@@ -100,7 +99,6 @@ export default function LecturePage({ params }: { params: Promise<{ id: string }
     );
   }
 
-  const youtubeId = lecture.type === 'recorded' && lecture.videoUrl ? extractYouTubeId(lecture.videoUrl) : null;
   const liveStatus = lecture.type === 'live' ? getLiveStatus(lecture.scheduledAt) : null;
 
   return (
@@ -139,16 +137,8 @@ export default function LecturePage({ params }: { params: Promise<{ id: string }
       {/* Recorded lecture — YouTube Player */}
       {lecture.type === 'recorded' && (
         <div className="mt-6">
-          {youtubeId ? (
-            <div className="w-full aspect-video rounded-xl overflow-hidden bg-slate-800 border border-slate-700/50">
-              <iframe
-                className="w-full h-full"
-                src={`https://www.youtube.com/embed/${youtubeId}`}
-                title={lecture.title}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
+          {lecture.videoUrl ? (
+            <ProtectedVideoPlayer url={lecture.videoUrl} />
           ) : (
             <div className="w-full aspect-video rounded-xl overflow-hidden bg-slate-800 border border-slate-700/50 flex items-center justify-center">
               <div className="text-center">
@@ -242,6 +232,29 @@ export default function LecturePage({ params }: { params: Promise<{ id: string }
               </a>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Study Materials */}
+      {lecture.materialsUrl && (
+        <div className="mt-8">
+          <h2 className="text-xl font-bold text-white mb-4">Study Materials</h2>
+          <a
+            href={lecture.materialsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-3 bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700/50 rounded-xl px-5 py-4 transition-all duration-200 group"
+          >
+            <div className="w-10 h-10 bg-indigo-500/20 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+              <svg className="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-white font-medium">Lecture Notes & Resources</p>
+              <p className="text-sm text-slate-400">View on Google Drive</p>
+            </div>
+          </a>
         </div>
       )}
     </div>

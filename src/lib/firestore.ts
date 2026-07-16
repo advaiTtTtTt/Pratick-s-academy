@@ -13,9 +13,10 @@ import {
   getCountFromServer,
   serverTimestamp,
   Timestamp,
+  limit,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { Subject, Lecture, User } from '@/lib/types';
+import type { Subject, Lecture, User, Notification, Alert } from '@/lib/types';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -52,6 +53,12 @@ export async function updateSubject(
 }
 
 export async function deleteSubject(id: string): Promise<void> {
+  // Delete all lectures belonging to this subject to prevent orphans
+  const lectures = await getLecturesBySubject(id);
+  for (const lecture of lectures) {
+    await deleteLecture(lecture.id);
+  }
+  
   await deleteDoc(doc(db, 'subjects', id));
 }
 
@@ -76,6 +83,7 @@ function docToLecture(d: { id: string; data: () => Record<string, unknown> }): L
     type: raw.type as 'recorded' | 'live',
     videoUrl: (raw.videoUrl as string) || undefined,
     liveJoinUrl: (raw.liveJoinUrl as string) || undefined,
+    materialsUrl: (raw.materialsUrl as string) || undefined,
     scheduledAt: convertTimestamp(raw.scheduledAt),
     createdAt: convertTimestamp(raw.createdAt) ?? new Date(),
   };
@@ -84,8 +92,7 @@ function docToLecture(d: { id: string; data: () => Record<string, unknown> }): L
 export async function getLecturesBySubject(subjectId: string): Promise<Lecture[]> {
   const q = query(
     collection(db, 'lectures'),
-    where('subjectId', '==', subjectId),
-    orderBy('createdAt', 'desc')
+    where('subjectId', '==', subjectId)
   );
   const snapshot = await getDocs(q);
   return snapshot.docs.map(docToLecture);
@@ -106,6 +113,16 @@ export async function addLecture(data: Omit<Lecture, 'id'>): Promise<string> {
     payload.scheduledAt = Timestamp.fromDate(data.scheduledAt);
   }
   const ref = await addDoc(collection(db, 'lectures'), payload);
+  
+  // Automatically create a notification for students
+  await addDoc(collection(db, 'notifications'), {
+    title: 'New Lecture Posted',
+    message: data.title,
+    type: 'lecture_posted',
+    createdAt: serverTimestamp(),
+    link: '/lectures/' + ref.id
+  });
+  
   return ref.id;
 }
 
@@ -121,6 +138,13 @@ export async function updateLecture(
 }
 
 export async function deleteLecture(id: string): Promise<void> {
+  // Find and delete any notifications pointing to this lecture to prevent ghost notifications
+  const qNotifications = query(collection(db, 'notifications'), where('link', '==', '/lectures/' + id));
+  const snapshot = await getDocs(qNotifications);
+  for (const docSnap of snapshot.docs) {
+    await deleteDoc(docSnap.ref);
+  }
+
   await deleteDoc(doc(db, 'lectures', id));
 }
 
@@ -149,4 +173,85 @@ export async function createUserDoc(
   data: Omit<User, 'id'>
 ): Promise<void> {
   await setDoc(doc(db, 'users', uid), data);
+}
+
+export async function updateUserProfile(uid: string, data: Partial<User>): Promise<void> {
+  // Prevent updating role or id
+  const { role, id, ...safeData } = data as any;
+  if (Object.keys(safeData).length > 0) {
+    await updateDoc(doc(db, 'users', uid), safeData);
+  }
+}
+
+// ─── Notifications ──────────────────────────────────────────────────────────
+
+export async function getRecentNotifications(limitCount = 10): Promise<Notification[]> {
+  const q = query(
+    collection(db, 'notifications'),
+    orderBy('createdAt', 'desc'),
+    limit(limitCount)
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((d) => {
+    const raw = d.data();
+    return {
+      id: d.id,
+      ...raw,
+      createdAt: convertTimestamp(raw.createdAt) ?? new Date(),
+    } as Notification;
+  });
+}
+
+// ─── Alerts ─────────────────────────────────────────────────────────────────
+
+export async function getActiveAlert(): Promise<Alert | null> {
+  const q = query(
+    collection(db, 'alerts'),
+    where('isActive', '==', true),
+    limit(1)
+  );
+  const snapshot = await getDocs(q);
+  if (snapshot.empty) return null;
+  const raw = snapshot.docs[0].data();
+  return {
+    id: snapshot.docs[0].id,
+    ...raw,
+    targetDate: raw.targetDate ? convertTimestamp(raw.targetDate) : null,
+    createdAt: convertTimestamp(raw.createdAt) ?? new Date(),
+  } as Alert;
+}
+
+export async function saveAlert(data: Omit<Alert, 'id' | 'createdAt'>): Promise<string> {
+  // First, deactivate any existing active alerts
+  const activeQ = query(collection(db, 'alerts'), where('isActive', '==', true));
+  const activeSnapshot = await getDocs(activeQ);
+  for (const docSnap of activeSnapshot.docs) {
+    await updateDoc(docSnap.ref, { isActive: false });
+  }
+
+  // Then add the new alert
+  const payload: any = {
+    ...data,
+    createdAt: serverTimestamp(),
+  };
+  if (data.targetDate) {
+    payload.targetDate = Timestamp.fromDate(data.targetDate);
+  }
+  const ref = await addDoc(collection(db, 'alerts'), payload);
+  return ref.id;
+}
+
+export async function deactivateAlert(alertId: string): Promise<void> {
+  await updateDoc(doc(db, 'alerts', alertId), { isActive: false });
+}
+
+export async function sendManualNotification(title: string, message: string, link?: string): Promise<string> {
+  const docRef = await addDoc(collection(db, 'notifications'), {
+    title,
+    message,
+    type: 'announcement',
+    link: link || null,
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
 }
