@@ -1,13 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
 import { getActiveAlert, saveAlert, deactivateAlert, sendManualNotification } from '@/lib/firestore';
 import type { Alert } from '@/lib/types';
 import LoadingSpinner from '@/components/LoadingSpinner';
 
 export default function NotificationsPage() {
-  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'bell' | 'banner'>('bell');
   const [loading, setLoading] = useState(true);
 
@@ -70,7 +68,7 @@ export default function NotificationsPage() {
         message: alertMessage,
         targetDate: alertDate ? new Date(alertDate) : null,
         isActive: true,
-      } as any);
+      });
       
       const newAlert = await getActiveAlert();
       setActiveAlert(newAlert);
@@ -151,7 +149,7 @@ export default function NotificationsPage() {
                 </div>
                 <div>
                   <h2 className="text-lg font-semibold text-white">Send Push Notification</h2>
-                  <p className="text-sm text-slate-400">Instantly appears in the students' notification dropdown.</p>
+                  <p className="text-sm text-slate-400">Instantly appears in the students&apos; notification dropdown.</p>
                 </div>
               </div>
 

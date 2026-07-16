@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { getSubjects, getSubjectLectureCount, getStudents } from '@/lib/firestore';
-import { Subject, Alert } from '@/lib/types';
+import { Subject } from '@/lib/types';
 import LoadingSpinner from '@/components/LoadingSpinner';
 
 interface SubjectWithCount extends Subject {

@@ -177,7 +177,9 @@ export async function createUserDoc(
 
 export async function updateUserProfile(uid: string, data: Partial<User>): Promise<void> {
   // Prevent updating role or id
-  const { role, id, ...safeData } = data as any;
+  const safeData = { ...data };
+  delete safeData.role;
+  delete safeData.id;
   if (Object.keys(safeData).length > 0) {
     await updateDoc(doc(db, 'users', uid), safeData);
   }
@@ -230,7 +232,7 @@ export async function saveAlert(data: Omit<Alert, 'id' | 'createdAt'>): Promise<
   }
 
   // Then add the new alert
-  const payload: any = {
+  const payload: Record<string, unknown> = {
     ...data,
     createdAt: serverTimestamp(),
   };

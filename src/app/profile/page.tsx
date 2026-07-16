@@ -38,9 +38,10 @@ export default function ProfilePage() {
       setTimeout(() => {
         window.location.href = '/';
       }, 1500);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error updating profile:', error);
-      setMessage({ text: error.message || 'Failed to update profile', type: 'error' });
+      const err = error as Error;
+      setMessage({ text: err.message || 'Failed to update profile', type: 'error' });
     } finally {
       setIsSaving(false);
     }
